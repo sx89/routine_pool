@@ -59,3 +59,72 @@ var wChanCap = func() int {
 	// new task if WorkerFunc is CPU-bound.
 	return 1
 }()
+
+func newWorker(wid uint64) *worker {
+	return &worker{
+		id:          wid,
+		lastUseTime: time.Now(),
+		ftch:        make(chan *FutureTask, wChanCap),
+	}
+}
+
+// NewWorkerPool .
+func NewWorkerPool(capacity uint64, conf *PoolConfig) (p *Pool, err error) {
+	if capacity == 0 || capacity&3 != 0 {
+		err = errors.New("capacity must bigger than zero and N power of 2")
+		return
+	}
+
+	rb, err := newRingBuffer(capacity)
+	if err != nil {
+		return
+	}
+	if conf == nil {
+		conf = _defaultConfig
+	}
+	conf.MaxWorkers = capacity
+	p = &Pool{
+		conf:       conf,
+		ready:      rb,
+		curWorkers: 0,
+		state:      stateCreate,
+		stop:       make(chan uint8, 1),
+	}
+	return
+}
+
+
+func (p *Pool) changeState(old, new uint8) bool {
+	p.lock.Lock()
+	defer p.lock.Unlock()
+	if p.state != old {
+		return false
+	}
+
+	p.state = new
+	return true
+}
+
+// Start .
+func (p *Pool) Start() error {
+	if !p.changeState(stateCreate, stateRunning) {
+		return errors.New("workerpool already started")
+	}
+	go func() {
+		defer close(p.stop)
+		for {
+			p.clean()
+			select {
+			case <-p.stop:
+				p.cleanAll()
+				for !p.changeState(stateStopping, stateShutdown) {
+					runtime.Gosched()
+				}
+				return
+			default:
+				time.Sleep(p.conf.KeepAlive)
+			}
+		}
+	}()
+	return nil
+}
