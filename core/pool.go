@@ -128,3 +128,53 @@ func (p *Pool) Start() error {
 	}()
 	return nil
 }
+
+
+// Stop .
+func (p *Pool) Stop() error {
+	if !p.changeState(stateRunning, stateStopping) {
+		return errors.New("workerpool is stopping")
+	}
+	p.stop <- stateStopping
+	return nil
+}
+
+// Submit .
+func (p *Pool) Submit(ft *FutureTask) error {
+	w, err := p.getReadyWorker()
+	if err != nil {
+		return err
+	}
+
+	w.ftch <- ft
+	return nil
+}
+
+// getReadyWorker .
+func (p *Pool) getReadyWorker() (w *worker, err error) {
+	w = p.ready.pop()
+	if w == nil {
+		p.lock.Lock()
+		workerID := p.curWorkers
+		if p.curWorkers >= p.conf.MaxWorkers {
+			err = errors.New("workerpool is full")
+			p.lock.Unlock()
+			return
+		}
+		p.curWorkers++
+		p.lock.Unlock()
+
+		w = newWorker(workerID)
+		go func(w *worker) {
+			for {
+				ft, ok := <-w.ftch
+				if !ok {
+					return
+				}
+				ft.out <- Run()
+				p.release(w)
+			}
+		}(w)
+	}
+	return
+}
