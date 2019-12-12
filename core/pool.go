@@ -178,3 +178,58 @@ func (p *Pool) getReadyWorker() (w *worker, err error) {
 	}
 	return
 }
+
+// close worker
+func (p *Pool) close(w *worker) {
+	p.lock.Lock()
+	defer p.lock.Unlock()
+	if p.curWorkers > 0 {
+		p.curWorkers--
+	}
+	close(w.ftch)
+}
+
+// release  worker
+func (p *Pool) release(w *worker) {
+	if p.state > stateRunning {
+		p.close(w)
+		return
+	}
+	w.lastUseTime = time.Now()
+	if err := p.ready.push(w); err != nil {
+		p.close(w)
+	}
+}
+
+// clean: clean idle goroutine
+func (p *Pool) clean() {
+	for {
+		size := p.ready.size()
+		if size <= p.conf.MinIdleWorkers {
+			return
+		}
+
+		w := p.ready.pop()
+		if w == nil {
+			return
+		}
+
+		currentTime := time.Now()
+		if currentTime.Sub(w.lastUseTime) < p.conf.KeepAlive {
+			p.release(w)
+			return
+		}
+		p.close(w)
+	}
+}
+
+// cleanAll
+func (p *Pool) cleanAll() {
+	for {
+		w := p.ready.pop()
+		if w == nil {
+			return
+		}
+		p.release(w)
+	}
+}
