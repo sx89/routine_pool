@@ -21,7 +21,6 @@ var _defaultConfig = &PoolConfig{
 	KeepAlive:      30 * time.Second,
 }
 
-// PoolConfig .
 type PoolConfig struct {
 	MaxWorkers     uint64
 	MaxIdleWorkers uint64
@@ -29,7 +28,6 @@ type PoolConfig struct {
 	KeepAlive      time.Duration
 }
 
-// Pool .
 type Pool struct {
 	conf       *PoolConfig
 	ready      *ringBuffer
@@ -39,7 +37,6 @@ type Pool struct {
 	stop       chan uint8
 }
 
-// worker .
 type worker struct {
 	id          uint64
 	lastUseTime time.Time
@@ -68,7 +65,6 @@ func newWorker(wid uint64) *worker {
 	}
 }
 
-// NewWorkerPool .
 func NewWorkerPool(capacity uint64, conf *PoolConfig) (p *Pool, err error) {
 	if capacity == 0 || capacity&3 != 0 {
 		err = errors.New("capacity must bigger than zero and N power of 2")
@@ -104,7 +100,6 @@ func (p *Pool) changeState(old, new uint8) bool {
 	return true
 }
 
-// Start .
 func (p *Pool) Start() error {
 	if !p.changeState(stateCreate, stateRunning) {
 		return errors.New("workerpool already started")
@@ -128,7 +123,6 @@ func (p *Pool) Start() error {
 	return nil
 }
 
-// Stop .
 func (p *Pool) Stop() error {
 	if !p.changeState(stateRunning, stateStopping) {
 		return errors.New("workerpool is stopping")
@@ -137,7 +131,6 @@ func (p *Pool) Stop() error {
 	return nil
 }
 
-// Submit .
 func (p *Pool) Submit(ft *FutureTask) error {
 	w, err := p.getReadyWorker()
 	if err != nil {
@@ -148,7 +141,6 @@ func (p *Pool) Submit(ft *FutureTask) error {
 	return nil
 }
 
-// getReadyWorker .
 func (p *Pool) getReadyWorker() (w *worker, err error) {
 	w = p.ready.pop()
 	if w == nil {
@@ -169,7 +161,7 @@ func (p *Pool) getReadyWorker() (w *worker, err error) {
 				if !ok {
 					return
 				}
-				ft.out <- Run()
+				ft.out <- ft.T.Run()
 				p.release(w)
 			}
 		}(w)
@@ -221,7 +213,6 @@ func (p *Pool) clean() {
 	}
 }
 
-// cleanAll
 func (p *Pool) cleanAll() {
 	for {
 		w := p.ready.pop()
