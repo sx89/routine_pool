@@ -3,26 +3,26 @@ package cmd
 import (
 	"fmt"
 	"github.com/eapache/queue"
-	routinepool "routine-pool/core"
+	routinePool "routine-pool/core"
 	"runtime"
 	"sync"
 	"time"
 )
 
 var (
-	wp    *routinepool.Pool
+	wp    *routinePool.Pool
 	q     queue.Queue
 	group sync.WaitGroup
 )
 
-func createPool() *routinepool.Pool {
-	conf := &routinepool.PoolConfig{
+func createPool() *routinePool.Pool {
+	conf := &routinePool.PoolConfig{
 		MaxWorkers:     1024,
 		MaxIdleWorkers: 512,
 		MinIdleWorkers: 256,
 		KeepAlive:      30 * time.Second,
 	}
-	p, err := routinepool.NewWorkerPool(2048, conf)
+	p, err := routinePool.NewWorkerPool(2048, conf)
 	if err != nil {
 		fmt.Println(err)
 		return nil
@@ -49,7 +49,7 @@ func (t *TestTask) Run() *[]byte {
 
 func producer(id int) {
 	for j := 0; j < 10000; j++ {
-		ft := routinepool.NewFutureTask(&TestTask{
+		ft := routinePool.NewFutureTask(&TestTask{
 			name: fmt.Sprintf("t:p %d, id %d", id, j),
 		})
 		for {
@@ -73,8 +73,8 @@ func consumer(id int) {
 		if inter == nil {
 			continue
 		}
-		//task := inter[0].(*routinepool.FutureTask)
-		task := inter.(*routinepool.FutureTask)
+		//task := inter[0].(*routinePool.FutureTask)
+		task := inter.(*routinePool.FutureTask)
 		// task.Wait(3 * time.Second)
 		res, err := task.Wait(1 * time.Second)
 		if err != nil {
