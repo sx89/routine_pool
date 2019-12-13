@@ -1,10 +1,10 @@
 package core
 
 import (
-"errors"
-"math"
-"runtime"
-"sync/atomic"
+	"errors"
+	"math"
+	"runtime"
+	"sync/atomic"
 )
 
 // ringBuffer .

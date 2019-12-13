@@ -1,10 +1,10 @@
 package core
 
 import (
-"errors"
-"runtime"
-"sync"
-"time"
+	"errors"
+	"runtime"
+	"sync"
+	"time"
 )
 
 const (
@@ -93,7 +93,6 @@ func NewWorkerPool(capacity uint64, conf *PoolConfig) (p *Pool, err error) {
 	return
 }
 
-
 func (p *Pool) changeState(old, new uint8) bool {
 	p.lock.Lock()
 	defer p.lock.Unlock()
@@ -128,7 +127,6 @@ func (p *Pool) Start() error {
 	}()
 	return nil
 }
-
 
 // Stop .
 func (p *Pool) Stop() error {
